@@ -9,11 +9,11 @@ contract CustomToken is ERC20 {
     EnumerableSet.AddressSet private mintingAdmins;
 
     uint256 private _maxSupply;
-    uint256 public TMAX;
+    uint256 private TMAX;
     uint256 private lastResetTimestamp;
-    mapping(address => uint256) public dailyMintedAmounts; // Track daily mints per admin
+    mapping(address => uint256) private dailyMintedAmounts; // Track daily mints per admin
 
-    mapping(uint256 => mapping(address => bool)) public tmaxVotes;
+    mapping(uint256 => mapping(address => bool)) private tmaxVotes;
 
     constructor(
         uint256 maxSupply_,
@@ -50,6 +50,10 @@ contract CustomToken is ERC20 {
 
     function maxSupply() public view virtual returns (uint256) {
         return _maxSupply;
+    }
+
+    function GetTMAX() public view virtual returns (uint256) {
+        return TMAX;
     }
 
     function mint(
