@@ -65,14 +65,17 @@ contract CustomToken is ERC20 {
         _mint(to, amount);
     }
 
-    function resetDailyMintedAmounts() internal {
-        uint256 currentDay = block.timestamp / (24 * 60 * 60); // Approx. day based on timestamp
-        if (currentDay > lastResetTimestamp) {
-            lastResetTimestamp = currentDay;
-            for (uint256 i = 0; i < mintingAdmins.length(); i++) {
-                address adminAddress = mintingAdmins.at(i);
-                dailyMintedAmounts[adminAddress] = 0;
-            }
+    function mintBatch(
+        address[] memory recipients,
+        uint256[] memory amounts
+    ) public onlyMinter {
+        require(
+            recipients.length == amounts.length,
+            "Recipients and amounts arrays must have the same length"
+        );
+
+        for (uint i = 0; i < recipients.length; i++) {
+            mint(recipients[i], amounts[i]);
         }
     }
 
@@ -88,18 +91,6 @@ contract CustomToken is ERC20 {
         }
     }
 
-    function getVoteCount(
-        mapping(address => bool) storage votes
-    ) internal view returns (uint256) {
-        uint256 count = 0;
-        for (uint256 i = 0; i < EnumerableSet.length(mintingAdmins); i++) {
-            if (votes[EnumerableSet.at(mintingAdmins, i)]) {
-                count++;
-            }
-        }
-        return count;
-    }
-
     function transfer(
         address recipient,
         uint256 amount
@@ -113,5 +104,28 @@ contract CustomToken is ERC20 {
         uint256 amount
     ) public override validRecipient(recipient) returns (bool) {
         return super.transferFrom(sender, recipient, amount);
+    }
+
+    function resetDailyMintedAmounts() internal {
+        uint256 currentDay = block.timestamp / (24 * 60 * 60); // Approx. day based on timestamp
+        if (currentDay > lastResetTimestamp) {
+            lastResetTimestamp = currentDay;
+            for (uint256 i = 0; i < mintingAdmins.length(); i++) {
+                address adminAddress = mintingAdmins.at(i);
+                dailyMintedAmounts[adminAddress] = 0;
+            }
+        }
+    }
+
+    function getVoteCount(
+        mapping(address => bool) storage votes
+    ) internal view returns (uint256) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < EnumerableSet.length(mintingAdmins); i++) {
+            if (votes[EnumerableSet.at(mintingAdmins, i)]) {
+                count++;
+            }
+        }
+        return count;
     }
 }

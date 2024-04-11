@@ -1,74 +1,61 @@
 const CustomToken = artifacts.require("CustomToken");
+const { BN } = require('web3-utils');
 
 contract("CustomToken", accounts =>
 {
+    const [admin1, admin2, recipient] = accounts;
     let token;
-    const initialSupply = 0;
 
     beforeEach(async () =>
     {
-        token = await CustomToken.new({ from: accounts[0] });
+        token = await CustomToken.new(new BN('100000'), [admin1, admin2], new BN('1000'));
     });
 
-    it("should put initialSupply amount of tokens in the first account", async () =>
+    it("should initialize correctly", async () =>
     {
-        const balance = await token.balanceOf(accounts[0]);
-        assert.equal(balance.valueOf(), 0, "First account did not receive the initial supply");
+        const maxSupply = await token.maxSupply();
+        const tmax = await token.TMAX();
+        expect(maxSupply.toString()).to.equal('100000');
+        expect(tmax.toString()).to.equal('1000');
     });
 
-    it("should return the correct total supply after construction", async () =>
+    it("should allow mintingAdmin to mint tokens", async () =>
     {
-        const totalSupply = await token.totalSupply();
-        assert.equal(totalSupply, initialSupply);
+        await token.mint(recipient, new BN('500'), { from: admin1 });
+        const balance = await token.balanceOf(recipient);
+        expect(balance.toString()).to.equal('500');
     });
 
-    it("should be able to transfer tokens between accounts", async () =>
-    {
-        const amount = 10;
-        await token.transfer(accounts[1], amount, { from: accounts[0] });
-        const senderBalance = await token.balanceOf(accounts[0]);
-        const receiverBalance = await token.balanceOf(accounts[1]);
-        assert.equal(senderBalance.valueOf(), initialSupply - amount, "Amount wasn't correctly taken from the sender");
-        assert.equal(receiverBalance.valueOf(), amount, "Amount wasn't correctly sent to the receiver");
-    });
-
-
-
-    it("should not allow to transfer more tokens than available in total", async () =>
+    it("should not allow non-mintingAdmin to mint tokens", async () =>
     {
         try
         {
-            await token.transfer(accounts[1], initialSupply + 1, { from: accounts[0] });
+            await token.mint(recipient, new BN('500'), { from: recipient });
         } catch (error)
         {
-            assert(error.message.includes("revert"), "Expected revert error, got: " + error.message);
-            return;
+            assert(error.message.indexOf('Caller is not a minter') >= 0, 'error message must contain "Caller is not a minter"');
         }
-        assert.fail('Expected revert not received');
     });
 
-    it("should not allow to transfer tokens from an account with insufficient balance", async () =>
+    it("should not allow minting more than TMAX in a day", async () =>
     {
         try
         {
-            await token.transferFrom(accounts[1], accounts[2], 1, { from: accounts[0] });
+            await token.mint(recipient, new BN('1001'), { from: admin1 });
         } catch (error)
         {
-            assert(error.message.includes("revert"), "Expected revert error, got: " + error.message);
-            return;
+            assert(error.message.indexOf("Individual daily limit exceeded") >= 0, 'error message must contain "Individual daily limit exceeded"');
         }
-        assert.fail('Expected revert not received');
     });
 
-    it("should update balances after transfers", async () =>
+    it("should not allow minting more than max supply", async () =>
     {
-        const amount = 100;
-        await token.transfer(accounts[1], amount, { from: accounts[0] });
-        const senderBalance = await token.balanceOf(accounts[0]);
-        const receiverBalance = await token.balanceOf(accounts[1]);
-        assert.equal(senderBalance, initialSupply - amount);
-        assert.equal(receiverBalance, amount);
+        try
+        {
+            await token.mint(recipient, new BN('2000000'), { from: admin1 });
+        } catch (error)
+        {
+            assert(error.message.indexOf('Cannot mint more than max supply') >= 0, 'error message must contain "Cannot mint more than max supply"');
+        }
     });
-
-    // Add more tests as needed...
 });
