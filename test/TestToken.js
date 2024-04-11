@@ -8,7 +8,7 @@ contract("CustomToken", accounts =>
 
     beforeEach(async () =>
     {
-        token = await CustomToken.new(new BN('100000'), [admin1, admin2], new BN('1000'));
+        token = await CustomToken.new(new BN('100000'), [admin1, admin2], new BN('1000'), new BN('1000'));
     });
 
     it("should initialize correctly", async () =>
@@ -142,7 +142,7 @@ contract('CustomTokenAdminManagement', (accounts) =>
 
     beforeEach(async () =>
     {
-        token = await CustomToken.new(new BN('100000'), [admin1, admin2, admin3], new BN('1000'));
+        token = await CustomToken.new(new BN('100000'), [admin1, admin2, admin3], new BN('1000'), new BN('1000'));
         // Assuming admin1 is the deployer and already a minter
     });
 
@@ -150,7 +150,7 @@ contract('CustomTokenAdminManagement', (accounts) =>
     {
         await token.addMintAdmin(candidate, { from: admin1 });
         const admins = await token.getMintingAdmins();
-        expect(admins).to.not.include(admin3);
+        expect(admins).to.not.include(candidate);
         await token.addMintAdmin(candidate, { from: admin2 });
         const admins2 = await token.getMintingAdmins();
         expect(admins2).to.include(candidate);
@@ -163,6 +163,53 @@ contract('CustomTokenAdminManagement', (accounts) =>
         const admins = await token.getMintingAdmins();
         expect(admins).to.not.include(admin3);
 
+    });
+});
+
+contract('CustomTokenTransferLimits', (accounts) =>
+{
+    let token;
+    const admin1 = accounts[0];
+    const admin2 = accounts[1];
+    const user1 = accounts[2];
+    const user2 = accounts[3];
+
+    beforeEach(async () =>
+    {
+        token = await CustomToken.new(new BN('100000'), [admin1, admin2], new BN('10000'), new BN('1000'));
+
+        // Assuming admin1 is the deployer and already a minter
+        await token.addMintAdmin(admin2, { from: admin1 });
+        await token.mint(user1, 2000, { from: admin1 }); // Mint some tokens to user1 for testing
+    });
+
+    it("should allow transfers within the daily limit", async () =>
+    {
+        await token.transfer(user2, 500, { from: user1 });
+        const balance = await token.balanceOf(user2);
+        assert.equal(balance.toNumber(), 500, "Transfer did not work correctly within the daily limit");
+    });
+
+    it("should not allow transfers that exceed the daily limit", async () =>
+    {
+        try
+        {
+            await token.transfer(user2, 2001, { from: user1 });
+            assert.fail("The transaction should have thrown an error");
+        } catch (err)
+        {
+            assert.include(err.message, "Individual daily limit exceeded", "The error message should contain 'Individual daily limit exceeded'");
+        }
+    });
+
+    it("should reset the daily transfer limit after a day", async () =>
+    {
+        await token.transfer(user2, 1000, { from: user1 });
+        // Simulate the passing of a day
+        await increaseTime(24 * 60 * 60 + 1);
+        await token.transfer(user2, 1000, { from: user1 });
+        const balance = await token.balanceOf(user2);
+        assert.equal(balance.toNumber(), 2000, "The daily transfer limit did not reset after a day");
     });
 });
 

@@ -10,7 +10,12 @@ contract CustomToken is ERC20 {
 
     uint256 private _maxSupply;
     uint256 private TMAX;
-    uint256 private lastResetTimestamp;
+
+    uint256 private TransferLimit;
+
+    mapping(address => uint256) private dailyTransferedAmounts; // Track transfers per user
+    mapping(address => uint256) private lastResetTimestamp; // Track last reset timestamp (day
+
     mapping(address => uint256) private dailyMintedAmounts; // Track daily mints per admin
 
     mapping(uint256 => mapping(address => bool)) private tmaxVotes;
@@ -20,10 +25,12 @@ contract CustomToken is ERC20 {
     constructor(
         uint256 maxSupply_,
         address[] memory mintingAdmins_,
-        uint256 tmax_ // Add the TMAX parameter
+        uint256 tmax_, // Add the TMAX parameter
+        uint256 transferLimit_
     ) ERC20("CustomToken", "CTK") {
         _maxSupply = maxSupply_;
         TMAX = tmax_;
+        TransferLimit = transferLimit_;
         for (uint256 i = 0; i < mintingAdmins_.length; i++) {
             mintingAdmins.add(mintingAdmins_[i]);
         }
@@ -133,6 +140,12 @@ contract CustomToken is ERC20 {
         address recipient,
         uint256 amount
     ) public override validRecipient(recipient) returns (bool) {
+        resetDailyTransferedAmounts();
+        require(
+            dailyTransferedAmounts[msg.sender] + amount <= TransferLimit,
+            "Individual daily limit exceeded"
+        );
+        dailyTransferedAmounts[msg.sender] += amount;
         return super.transfer(recipient, amount);
     }
 
@@ -141,17 +154,31 @@ contract CustomToken is ERC20 {
         address recipient,
         uint256 amount
     ) public override validRecipient(recipient) returns (bool) {
+        resetDailyTransferedAmounts();
+        require(
+            dailyTransferedAmounts[msg.sender] + amount <= TransferLimit,
+            "Individual daily limit exceeded"
+        );
+        dailyTransferedAmounts[msg.sender] += amount;
         return super.transferFrom(sender, recipient, amount);
     }
 
     function resetDailyMintedAmounts() internal {
         uint256 currentDay = block.timestamp / (24 * 60 * 60); // Approx. day based on timestamp
-        if (currentDay > lastResetTimestamp) {
-            lastResetTimestamp = currentDay;
+        if (currentDay > lastResetTimestamp[msg.sender]) {
+            lastResetTimestamp[msg.sender] = currentDay;
             for (uint256 i = 0; i < mintingAdmins.length(); i++) {
                 address adminAddress = mintingAdmins.at(i);
                 dailyMintedAmounts[adminAddress] = 0;
             }
+        }
+    }
+
+    function resetDailyTransferedAmounts() internal {
+        uint256 currentDay = block.timestamp / (24 * 60 * 60); // Approx. day based on timestamp
+        if (currentDay > lastResetTimestamp[msg.sender]) {
+            dailyTransferedAmounts[msg.sender] = 0;
+            lastResetTimestamp[msg.sender] = currentDay;
         }
     }
 
