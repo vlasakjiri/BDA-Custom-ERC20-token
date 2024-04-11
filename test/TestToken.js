@@ -132,6 +132,40 @@ contract("CustomToken", accounts =>
     });
 });
 
+contract('CustomTokenAdminManagement', (accounts) =>
+{
+    let token;
+    const admin1 = accounts[0];
+    const admin2 = accounts[1];
+    const admin3 = accounts[2];
+    const candidate = accounts[3];
+
+    beforeEach(async () =>
+    {
+        token = await CustomToken.new(new BN('100000'), [admin1, admin2, admin3], new BN('1000'));
+        // Assuming admin1 is the deployer and already a minter
+    });
+
+    it("should allow mintingAdmins to propose a new mintAdmin", async () =>
+    {
+        await token.addMintAdmin(candidate, { from: admin1 });
+        const admins = await token.getMintingAdmins();
+        expect(admins).to.not.include(admin3);
+        await token.addMintAdmin(candidate, { from: admin2 });
+        const admins2 = await token.getMintingAdmins();
+        expect(admins2).to.include(candidate);
+    });
+
+    it("should allow mintingAdmins to propose removal of a mintAdmin", async () =>
+    {
+        await token.removeMintAdmin(admin3, { from: admin1 });
+        await token.removeMintAdmin(admin3, { from: admin2 });
+        const admins = await token.getMintingAdmins();
+        expect(admins).to.not.include(admin3);
+
+    });
+});
+
 const increaseTime = function (duration)
 {
     const id = Date.now()

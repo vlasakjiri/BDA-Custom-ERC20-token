@@ -14,6 +14,8 @@ contract CustomToken is ERC20 {
     mapping(address => uint256) private dailyMintedAmounts; // Track daily mints per admin
 
     mapping(uint256 => mapping(address => bool)) private tmaxVotes;
+    mapping(address => mapping(address => bool)) private AddMintAdminVotes;
+    mapping(address => mapping(address => bool)) private RemoveMintAdminVotes;
 
     constructor(
         uint256 maxSupply_,
@@ -56,6 +58,14 @@ contract CustomToken is ERC20 {
         return TMAX;
     }
 
+    function getMintingAdmins() public view virtual returns (address[] memory) {
+        address[] memory admins = new address[](mintingAdmins.length());
+        for (uint256 i = 0; i < mintingAdmins.length(); i++) {
+            admins[i] = mintingAdmins.at(i);
+        }
+        return admins;
+    }
+
     function mint(
         address to,
         uint256 amount
@@ -91,6 +101,30 @@ contract CustomToken is ERC20 {
             for (uint256 i = 0; i < mintingAdmins.length(); i++) {
                 address adminAddress = mintingAdmins.at(i);
                 delete tmaxVotes[_tmax][adminAddress];
+            }
+        }
+    }
+
+    function addMintAdmin(address admin) public onlyMinter {
+        AddMintAdminVotes[admin][msg.sender] = true;
+        uint256 votes = getVoteCount(AddMintAdminVotes[admin]);
+        if (votes * 2 > mintingAdmins.length()) {
+            mintingAdmins.add(admin);
+            for (uint256 i = 0; i < mintingAdmins.length(); i++) {
+                address adminAddress = mintingAdmins.at(i);
+                delete AddMintAdminVotes[admin][adminAddress];
+            }
+        }
+    }
+
+    function removeMintAdmin(address admin) public onlyMinter {
+        RemoveMintAdminVotes[admin][msg.sender] = true;
+        uint256 votes = getVoteCount(RemoveMintAdminVotes[admin]);
+        if (votes * 2 > mintingAdmins.length()) {
+            mintingAdmins.remove(admin);
+            for (uint256 i = 0; i < mintingAdmins.length(); i++) {
+                address adminAddress = mintingAdmins.at(i);
+                delete RemoveMintAdminVotes[admin][adminAddress];
             }
         }
     }
