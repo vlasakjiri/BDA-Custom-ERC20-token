@@ -21,9 +21,12 @@ contract("CustomToken", accounts =>
 
     it("should allow mintingAdmin to mint tokens", async () =>
     {
-        await token.mint(recipient, new BN('500'), { from: admin1 });
+        const tx = await token.mint(recipient, new BN('500'), { from: admin1 });
         const balance = await token.balanceOf(recipient);
         expect(balance.toString()).to.equal('500');
+        //log gas used
+        console.log('Gas used for minting: ' + tx.receipt.gasUsed);
+
     });
 
     it("should not allow non-mintingAdmin to mint tokens", async () =>
@@ -75,12 +78,16 @@ contract("CustomToken", accounts =>
     {
         const recipients = [accounts[3], accounts[4]];
         const amounts = [new BN('200'), new BN('300')];
-        await token.mintBatch(recipients, amounts, { from: admin1 });
+        const tx = await token.mintBatch(recipients, amounts, { from: admin1 });
         const balance1 = await token.balanceOf(recipients[0]);
         const balance2 = await token.balanceOf(recipients[1]);
         expect(balance1.toString()).to.equal('200');
         expect(balance2.toString()).to.equal('300');
+        //log gas used
+        console.log('Gas used for minting in batch: ' + tx.receipt.gasUsed);
     });
+
+
 
     it("should not allow burning of tokens", async () =>
     {
@@ -106,10 +113,12 @@ contract("CustomToken", accounts =>
     it("should change TMAX if more than half of mintingAdmins vote for it", async () =>
     {
         const newTMAX = new BN('2000');
-        await token.proposeTMAX(newTMAX, { from: admin1 });
+        const tx1 = await token.proposeTMAX(newTMAX, { from: admin1 });
         await token.proposeTMAX(newTMAX, { from: admin2 });
         const tmax = await token.GetTMAX();
         expect(tmax.toString()).to.equal(newTMAX.toString());
+        //log gas used
+        console.log('Gas used for proposing TMAX: ' + tx1.receipt.gasUsed);
     });
 
     it("should not change TMAX if less than half of mintingAdmins vote for it", async () =>
@@ -148,20 +157,26 @@ contract('CustomTokenAdminManagement', (accounts) =>
 
     it("should allow mintingAdmins to propose a new mintAdmin", async () =>
     {
-        await token.addMintAdmin(candidate, { from: admin1 });
+        const tx = await token.addMintAdmin(candidate, { from: admin1 });
         const admins = await token.getMintingAdmins();
         expect(admins).to.not.include(candidate);
         await token.addMintAdmin(candidate, { from: admin2 });
         const admins2 = await token.getMintingAdmins();
         expect(admins2).to.include(candidate);
+
+        //log gas used
+        console.log('Gas used for proposing a new mintAdmin: ' + tx.receipt.gasUsed);
     });
 
     it("should allow mintingAdmins to propose removal of a mintAdmin", async () =>
     {
-        await token.removeMintAdmin(admin3, { from: admin1 });
+        const tx = await token.removeMintAdmin(admin3, { from: admin1 });
         await token.removeMintAdmin(admin3, { from: admin2 });
         const admins = await token.getMintingAdmins();
         expect(admins).to.not.include(admin3);
+
+        //log gas used
+        console.log('Gas used for proposing removal of a mintAdmin: ' + tx.receipt.gasUsed);
 
     });
 });
@@ -185,9 +200,11 @@ contract('CustomTokenTransferLimits', (accounts) =>
 
     it("should allow transfers within the daily limit", async () =>
     {
-        await token.transfer(user2, 500, { from: user1 });
+        const tx = await token.transfer(user2, 500, { from: user1 });
         const balance = await token.balanceOf(user2);
         assert.equal(balance.toNumber(), 500, "Transfer did not work correctly within the daily limit");
+        //log gas used
+        console.log('Gas used for transfer within daily limit: ' + tx.receipt.gasUsed);
     });
 
     it("should not allow transfers that exceed the daily limit", async () =>
