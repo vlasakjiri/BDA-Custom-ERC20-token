@@ -10,4 +10,7 @@ npm install
 ```
 
 # Running
-Then to test it run ```ganache-cli``` and then ```truffle test```
+Then to test it run ```ganache-cli``` and then in second terminal ```truffle test```
+
+# Demontration video
+Demontration video is available [here](https://nextcloud.fit.vutbr.cz/s/daMTyEE6CaeBM5y)
